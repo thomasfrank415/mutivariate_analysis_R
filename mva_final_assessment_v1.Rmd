@@ -1,0 +1,423 @@
+---
+title: "mva_final_assessment"
+author: "Thomas Frank"
+date: "2024-10-02"
+output: pdf_document
+---
+
+# Data Exploration
+```{r}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE)
+# Explore Data
+library(GGally)
+library(ggplot2)
+library(readr)
+abalone <- read_csv('/Users/macbook/Desktop/mva/Final Project/abalone.csv')
+head(abalone)
+summary(abalone)
+
+# Data Visualization
+ggpairs(abalone, mapping = aes(colour = Sex, alpha = 0.3))
+ggpairs(abalone, mapping = aes(colour = Sex, alpha = 0.3), columns = c("Length", "Diameter", "Height"))
+```
+Infant abalones are likely to be more easily distinguishable from adult abalones based 
+on their exterior measurements - they cluster at the lower end of the data set while Male and Female 
+abalones are more challenging to separate as their measurements overlap significantly in the upper ranges.
+```{r}
+```
+# 1_1. Predicting the Sex of the Abalone
+```{r}
+#######################################
+#Method 1 = Using Discriminant Analysis 
+#######################################
+#LDA and QDA classify abalone based on exterior measurements by finding 
+#boundaries between different sexes. LDA assumes equal covariance across classes
+#QDA allows for varying covariances, offering flexibility in handling the 
+#differences between male, female, and infant abalones in the abalone dataset.
+library(MASS)
+abalone$Sex <- as.factor(abalone$Sex)
+fit_lda <- lda(Sex ~ Length + Diameter + Height, data=abalone)
+fit_qda <- qda(Sex ~ Length + Diameter + Height, data=abalone)
+summary(fit_lda)
+summary(fit_qda)
+predictions_lda <- predict(fit_lda, abalone)$class
+predictions_qda <- predict(fit_qda, abalone)$class
+
+# Confusion matrices
+confusion_matrix_lda <- table(Predicted = predictions_lda, Actual = abalone$Sex)
+confusion_matrix_qda <- table(Predicted = predictions_qda, Actual = abalone$Sex)
+
+#Accuracy
+accuracy_lda <- sum(diag(confusion_matrix_lda)) / sum(confusion_matrix_lda)
+accuracy_qda <- sum(diag(confusion_matrix_qda)) / sum(confusion_matrix_qda)
+
+#Method 2 = Using SVM
+#####################
+#Has a linear kernel and is useful for the abalone dataset as it aims to identify 
+#optimal boundaries between abalone sexes, which is valuable when the 
+#relationship between exterior measurements and sex classification is complex.
+library(e1071)
+fit_svm <- svm(Sex ~ Length + Diameter + Height, data=abalone, kernel="linear")
+summary(fit_svm)
+
+predictions <- predict(fit_svm, abalone)
+
+# Confusion Matrix
+table(Predicted = predictions, Actual = abalone$Sex)
+confusion_matrix_svm <- table(Predicted = predictions, Actual = abalone$Sex)
+accuracy_svm <- sum(diag(confusion_matrix_svm)) / sum(confusion_matrix_svm)
+# Summary Table of Accuracy
+summary_table <- data.frame(
+  Method = c("LDA", "QDA", "SVM"),
+  Accuracy = c(accuracy_lda, accuracy_qda, accuracy_svm)
+)
+
+#print results to compare models
+print(confusion_matrix_lda)
+print(confusion_matrix_qda)
+print(confusion_matrix_svm)
+print(summary_table)
+```
+# SUMMARY:
+Moderate prediction accuracies of around 52% for LDA and QDA. Similar for SVM,
+however it misclassified all females.Suggests methods aren't great at classifying
+all sexes together.
+```{r}
+```
+# 1_2. Binary Classification for Infants (to avoid harvesting them)
+```{r}
+# Binary Classification: LDA
+abalone$Infant_Other <- ifelse(abalone$Sex == "I", "Infant", "Other")
+fit_lda_infant <- lda(Infant_Other ~ Length + Diameter + Height, data = abalone)
+predictions_lda_infant <- predict(fit_lda_infant)$class
+confusion_matrix_lda_infant <- table(Predicted = predictions_lda_infant, Actual = abalone$Infant_Other)
+accuracy_lda_infant <- sum(diag(confusion_matrix_lda_infant)) / sum(confusion_matrix_lda_infant)
+#1_3_QDA
+fit_qda_infant <- qda(Infant_Other ~ Length + Diameter + Height, data = abalone)
+predictions_qda_infant <- predict(fit_qda_infant)$class
+confusion_matrix_qda_infant <- table(Predicted = predictions_qda_infant, Actual = abalone$Infant_Other)
+accuracy_qda_infant <- sum(diag(confusion_matrix_qda_infant)) / sum(confusion_matrix_qda_infant)
+# Binary Classification: SVM
+abalone$Infant_Other <- as.factor(abalone$Infant_Other)
+library(e1071)
+fit_svm_infant <- svm(Infant_Other ~ Length + Diameter + Height, data = abalone, kernel = "linear")
+predictions_svm_infant <- predict(fit_svm_infant, abalone)
+confusion_matrix_svm_infant <- table(Predicted = predictions_svm_infant, Actual = abalone$Infant_Other)
+accuracy_svm_infant <- sum(diag(confusion_matrix_svm_infant)) / sum(confusion_matrix_svm_infant)
+# Summary Table of Accuracy
+summary_table_infant <- data.frame(
+  Method = c("LDA", "QDA", "SVM"),
+  Accuracy = c(accuracy_lda_infant, accuracy_qda_infant, accuracy_svm_infant)
+)
+#Output results
+print(confusion_matrix_lda_infant)
+print(confusion_matrix_qda_infant)
+print(confusion_matrix_svm_infant)
+print(summary_table_infant)
+```
+# SUMMARY:
+Great prediction accuracies of around 79% for each method.
+results suggest that discriminating infants from other abalone based on size 
+measurements is feasible with fairly high accuracy.
+```{r}
+```
+# 1_3. BINARY CLASSIFICATION For FEMALES (when profitability is prioritised)
+###########################################################################
+```{r}
+#1_3_LDA
+abalone$Female_Other <- ifelse(abalone$Sex == "F", "Female", "Other")
+fit_lda_female <- lda(Female_Other ~ Length + Diameter + Height, data = abalone)
+predictions_lda_female <- predict(fit_lda_female)$class
+confusion_matrix_lda_female <- table(Predicted = predictions_lda_female, Actual = abalone$Female_Other)
+accuracy_lda_female <- sum(diag(confusion_matrix_lda_female)) / sum(confusion_matrix_lda_female)
+#1_3_QDA
+fit_qda_female <- qda(Female_Other ~ Length + Diameter + Height, data = abalone)
+predictions_qda_female <- predict(fit_qda_female)$class
+confusion_matrix_qda_female <- table(Predicted = predictions_qda_female, Actual = abalone$Female_Other)
+accuracy_qda_female <- sum(diag(confusion_matrix_qda_female)) / sum(confusion_matrix_qda_female)
+#1_3_SVM
+abalone$Female_Other <- as.factor(abalone$Female_Other)
+fit_svm_female <- svm(Female_Other ~ Length + Diameter + Height, data = abalone, kernel = "linear")
+predictions_svm_female <- predict(fit_svm_female, abalone)
+confusion_matrix_svm_female <- table(Predicted = predictions_svm_female, Actual = abalone$Female_Other)
+accuracy_svm_female <- sum(diag(confusion_matrix_svm_female)) / sum(confusion_matrix_svm_female)
+# Summary Table of Accuracy
+summary_table_female <- data.frame(
+  Method = c("LDA", "QDA", "SVM"),
+  Accuracy = c(accuracy_lda_female, accuracy_qda_female, accuracy_svm_female)
+)
+#Output results
+print(confusion_matrix_lda_female)
+print(confusion_matrix_qda_female)
+print(confusion_matrix_svm_female)
+print(summary_table_female)
+```
+# SUMMARY:
+Good prediction accuracies of around 68-69% for LDA and QDA. Similar for SVM,
+however it misclassified all females.
+```{r}
+```
+
+# 1_4. BINARY CLASSIFICATION For MALE (when sustainability is prioritised)
+#########################################################################
+```{r}
+#1_4_LDA
+abalone$Male_Other <- ifelse(abalone$Sex == "M", "Male", "Other")
+fit_lda_male <- lda(Male_Other ~ Length + Diameter + Height, data = abalone)
+predictions_lda_male <- predict(fit_lda_male)$class
+confusion_matrix_lda_male <- table(Predicted = predictions_lda_male, Actual = abalone$Male_Other)
+accuracy_lda_male <- sum(diag(confusion_matrix_lda_male)) / sum(confusion_matrix_lda_male)
+#1_4_QDA
+fit_qda_male <- qda(Male_Other ~ Length + Diameter + Height, data = abalone)
+predictions_qda_male <- predict(fit_qda_male)$class
+confusion_matrix_qda_male <- table(Predicted = predictions_qda_male, Actual = abalone$Male_Other)
+accuracy_qda_male <- sum(diag(confusion_matrix_qda_male)) / sum(confusion_matrix_qda_male)
+#1_4_SVM
+abalone$Male_Other <- as.factor(abalone$Male_Other)
+fit_svm_male <- svm(Male_Other ~ Length + Diameter + Height, data = abalone, kernel = "linear")
+predictions_svm_male <- predict(fit_svm_male, abalone)
+confusion_matrix_svm_male <- table(Predicted = predictions_svm_male, Actual = abalone$Male_Other)
+accuracy_svm_male <- sum(diag(confusion_matrix_svm_male)) / sum(confusion_matrix_svm_male)
+# Summary Table of Accuracy
+summary_table_male <- data.frame(
+  Method = c("LDA", "QDA", "SVM"),
+  Accuracy = c(accuracy_lda_male, accuracy_qda_male, accuracy_svm_male)
+)
+print(confusion_matrix_lda_male)
+print(confusion_matrix_qda_male)
+print(confusion_matrix_svm_male)
+print(summary_table_male)
+
+```
+
+# SUMMARY:
+Moderate prediction accuracies of around 63% for LDA and QDA. Similar for SVM,
+however it misclassified all males.
+```{r}
+```
+# QUESTION 1 CONCLUSION:
+LDA and QDA are suitable for predicting the sex of abalone, with a particular 
+strength in identifying infants, which is crucial for sustainable harvesting. 
+While the models achieve moderate success in classifying males and females, 
+further refinement or different techniques are recommended for more accurate predictions.
+
+
+```{r}
+```
+#####################
+# Question 2
+#####################
+```{r}
+```
+# 2_1. Produce the best model for predicting Viscera and Shucked Weight:
+Test four different multivariate models to predict shucked and visceral 
+weights based on the abalone dataset.
+We will test 4 that are likely to work well: Multivariate Linear Model (MLM), 
+Log-Transformed Model, Polynomial Model, Interaction Model (Selected Model)
+```{r}
+library(gridExtra)
+library(Metrics)
+
+#2_1. Produce the best model for predicting Viscera and Shucked Weight
+models <- list()
+
+# Multivariate Linear Model
+fit_mlm <- lm(cbind(`Shucked weight`, `Viscera weight`) ~ Length + Diameter + Height, data = abalone)
+models$linear <- fit_mlm
+
+# Multivariate LOG Model
+fit_mlm_log <- lm(cbind(log(`Shucked weight`), log(`Viscera weight`)) ~ Length + Diameter + Height, data = abalone)
+models$log <- fit_mlm_log
+
+# Multivariate Polynomial Model
+fit_mlm_poly <- lm(cbind(`Shucked weight`, `Viscera weight`) ~ poly(Length, 2) + poly(Diameter, 2) + poly(Height, 2), data = abalone)
+models$poly <- fit_mlm_poly
+
+# Interaction Model
+fit_mlm_interaction <- lm(cbind(`Shucked weight`, `Viscera weight`) ~ Length * Diameter * Height, data = abalone)
+models$interaction <- fit_mlm_interaction
+
+# Function to get residuals and generate ggplot
+plot_residuals_vs_fitted <- function(model, model_name) {
+  predicted_values <- as.data.frame(predict(model))
+  
+  abalone$Residuals_Shucked <- abalone$`Shucked weight` - predicted_values[, 1]
+  abalone$Residuals_Viscera <- abalone$`Viscera weight` - predicted_values[, 2]
+  
+  p1 <- ggplot(abalone, aes(x = predicted_values[, 1], y = Residuals_Shucked)) +
+    geom_point(color = "blue", alpha = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    labs(title = paste("Residuals vs Fitted for Shucked (", model_name, ")", sep=""), x = "Fitted Values", y = "Residuals") +
+    theme_minimal()
+  
+  p2 <- ggplot(abalone, aes(x = predicted_values[, 2], y = Residuals_Viscera)) +
+    geom_point(color = "green", alpha = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+    labs(title = paste("Residuals vs Fitted for Viscera (", model_name, ")", sep=""), x = "Fitted Values", y = "Residuals") +
+    theme_minimal()
+  
+  return(list(p1, p2))
+}
+
+# Error Metrics for RMSE and R2
+error_metrics <- function(model, model_name) {
+  predicted_values <- as.data.frame(predict(model))
+  
+  rmse_shucked <- rmse(abalone$`Shucked weight`, predicted_values[, 1])
+  rmse_viscera <- rmse(abalone$`Viscera weight`, predicted_values[, 2])
+  
+  r2_shucked <- summary(lm(abalone$`Shucked weight` ~ predicted_values[, 1]))$r.squared
+  r2_viscera <- summary(lm(abalone$`Viscera weight` ~ predicted_values[, 2]))$r.squared
+  
+  cat("\nModel: ", model_name)
+  cat("\nRMSE Shucked:", rmse_shucked, "\nRMSE Viscera:", rmse_viscera)
+  cat("\nR-squared Shucked:", r2_shucked, "\nR-squared Viscera:", r2_viscera)
+  cat("\n-----------------------------")
+}
+
+# Output plots and error metrics
+plot_list <- list()
+for (name in names(models)) {
+  plot_list <- c(plot_list, plot_residuals_vs_fitted(models[[name]], name))
+  error_metrics(models[[name]], name)
+}
+
+do.call("grid.arrange", c(plot_list, ncol = 2))
+```
+# MODEL SELECTION: 
+Interaction model had the highest R^2, lowest RMSE and residuals and the residuals
+were spread at random with no patterns (unlike mlm and log). Therefore, we:
+#Select interaction model for best fit.#
+```{r}
+```
+# 2_2: Pre-compute Coefficients from the selected Model (interaction model):
+This ensures fast, efficient predictions using precomputed summaries, meeting the 
+algorithm's computational constraints without the need to retrain the model.
+```{r}
+# summaries/coefficients from the fitted model
+coefficients <- coef(fit_mlm_interaction)
+print(coefficients)
+# calc sigma
+residuals <- residuals(fit_mlm_interaction)
+df_residual <- df.residual(fit_mlm_interaction)
+sigma <- sqrt(sum(residuals^2) / df_residual)
+print(sigma)
+```
+# 2_3: Use Precomputed Coefficients for Prediction
+```{r}
+# Function to predict value
+predict_abalone_value_with_precomputed <- function(length, diameter, height, vshucked, vviscera, coefficients, sigma, level = 0.90) {
+  X_shucked <- coefficients[1, 1] + coefficients[2, 1] * length + coefficients[3, 1] * diameter + coefficients[4, 1] * height
+  X_viscera <- coefficients[1, 2] + coefficients[2, 2] * length + coefficients[3, 2] * diameter + coefficients[4, 2] * height
+  # the value formula for calculating
+  estimated_value <- (vshucked * X_shucked) + (vviscera * X_viscera)
+ 
+  t_value <- qt(1 - (1 - level) / 2, df = nrow(abalone) - 4)
+  
+  lower_bound_value <- (vshucked * (X_shucked - t_value * sigma)) + (vviscera * (X_viscera - t_value * sigma))
+  upper_bound_value <- (vshucked * (X_shucked + t_value * sigma)) + (vviscera * (X_viscera + t_value * sigma))
+  
+  if (!is.numeric(lower_bound_value) || !is.numeric(upper_bound_value)) {
+    lower_bound_value <- NA
+    upper_bound_value <- NA
+  }
+  
+  return(list(
+    shucked_weight = X_shucked,
+    viscera_weight = X_viscera,
+    value = estimated_value,
+    lower_bound = lower_bound_value,
+    upper_bound = upper_bound_value
+  ))
+}
+```
+
+
+# 2_4.  Example usage with an example single instance (the numbers can be changed as necessary):
+NOTE: The below assumes a predicted value of v(shucked) = 10 and v(viscera) = 5,
+however there are no prices given so these are completely arbitrary numbers and 
+can be adjusted according to the actual price.
+```{r}
+# Example usage of the function
+length <- 121
+diameter <- 100
+height <- 32
+vshucked <- 10  #Example dollar value per gram of shucked weight - arbitrary number
+vviscera <- 5   #Example dollar value per gram of viscera weight - arbitrary number
+
+result <- predict_abalone_value_with_precomputed(length, diameter, height, vshucked, vviscera, coefficients, sigma)
+print(result)
+```
+
+# 2_5.  Example usage on the entire Dataset using the Function:
+Or it can be applied to an entire dataset as shown below to the entire Abalone 
+dataset as an example.
+```{r}
+predicted_value <- numeric(nrow(abalone))
+lower_bound_value <- numeric(nrow(abalone))
+upper_bound_value <- numeric(nrow(abalone))
+
+# Loop through each row of the abalone dataset
+for (i in 1:nrow(abalone)) {
+  length <- abalone$Length[i]
+  diameter <- abalone$Diameter[i]
+  height <- abalone$Height[i]
+  vshucked <- 10  #Example dollar value per gram of shucked weight - arbitrary number
+  vviscera <- 5   #Example dollar value per gram of viscera weight - arbitrary number
+  
+  result <- predict_abalone_value_with_precomputed(length, diameter, height, vshucked, vviscera, coefficients, sigma)
+  #predict
+  predicted_value[i] <- result$value
+  lower_bound_value[i] <- result$lower_bound
+  upper_bound_value[i] <- result$upper_bound
+}
+
+#results df
+results_df <- data.frame(
+  Length = abalone$Length,
+  Diameter = abalone$Diameter,
+  Height = abalone$Height,
+  Predicted_Value = predicted_value,
+  Lower_Bound_Value = lower_bound_value,
+  Upper_Bound_Value = upper_bound_value
+)
+
+
+#Example usage on the entire dataset - Visualize the Results for the entire dataset
+# Plot 1: Predicted Value with Intervals vs Diameter
+plot_diameter <- ggplot(results_df, aes(x = Diameter, y = Predicted_Value)) +
+  geom_errorbar(aes(ymin = Lower_Bound_Value, ymax = Upper_Bound_Value), width = 0.2, color = "darkgray", alpha = 0.7) +
+  geom_point(color = "navy", alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "lightblue", linetype = "solid") +  
+  ylim(0, 1500) + 
+  labs(title = "Predicted Value vs Diameter", x = "Diameter", y = "Value") +
+  theme_minimal()
+
+# Plot 2: Predicted Value with Intervals vs Length
+plot_length <- ggplot(results_df, aes(x = Length, y = Predicted_Value)) +
+  geom_errorbar(aes(ymin = Lower_Bound_Value, ymax = Upper_Bound_Value), width = 0.2, color = "darkgray", alpha = 0.7) +
+  geom_point(color = "navy", alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "lightblue", linetype = "solid") +  
+  ylim(0, 1500) +
+  labs(title = "Predicted Value vs Length", x = "Length", y = "Value") +
+  theme_minimal()
+
+# Plot 3: Predicted Value with Intervals vs Height
+plot_height <- ggplot(results_df, aes(x = Height, y = Predicted_Value)) +
+  geom_errorbar(aes(ymin = Lower_Bound_Value, ymax = Upper_Bound_Value), width = 0.2, color = "darkgray", alpha = 0.7) +
+  geom_point(color = "navy", alpha = 0.5) +
+  geom_smooth(method = "loess", se = FALSE, color = "lightblue", linetype = "solid") +  
+  ylim(0, 1500) + 
+  xlim(0, 50) + 
+  labs(title = "Predicted Value vs Height", x = "Height", y = "Value") +
+  theme_minimal()
+
+# Output results on a grid
+grid.arrange(plot_diameter, plot_length, plot_height, ncol = 3)
+```
+# QUESTION 2 CONCLUSION:
+The interaction model was the best choice for predicting abalone weights.
+The use of pre-computed coefficients enables fast predictions, while prediction 
+intervals offer insights into potential variability. This approach meets the
+computational requirements and provides reliable predictions for abalone
+profitability in dynamic market environments.
